@@ -14,10 +14,17 @@ echo "Running PyInstaller..."
 # Include logo.png if present next to the exe. Do NOT embed data.db into the exe;
 # instead we'll copy any existing data.db into the dist folder after build so it stays writable.
 if [ -f logo.png ]; then
-  pyinstaller --noconsole --onedir --name "${APP_NAME}" --add-data "logo.png:." app.py
+  pyinstaller --noconsole --onedir --name "${APP_NAME}" \
+    --add-data "logo.png:." \
+    --hidden-import "PIL" \
+    --hidden-import "PIL._tkinter_finder" \
+    app.py
 else
   echo "Warning: logo.png not found, building without it."
-  pyinstaller --noconsole --onedir --name "${APP_NAME}" app.py
+  pyinstaller --noconsole --onedir --name "${APP_NAME}" \
+    --hidden-import "PIL" \
+    --hidden-import "PIL._tkinter_finder" \
+    app.py
 fi
 
 BUILD_DIR="dist/${APP_NAME}"
@@ -26,6 +33,13 @@ if [ -f data.db ]; then
   cp data.db "${BUILD_DIR}/"
 else
   echo "No data.db found in project root. The app will create a new DB on first run."
+fi
+
+if [ -f logo.png ]; then
+  echo "Copying logo.png into ${BUILD_DIR}/"
+  cp logo.png "${BUILD_DIR}/"
+else
+  echo "No logo.png found in project root."
 fi
 
 echo "Build complete. The distributable folder is: ${BUILD_DIR}"

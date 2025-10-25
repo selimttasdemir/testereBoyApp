@@ -56,18 +56,21 @@ class App:
 		logo_label.pack(side=tk.LEFT, padx=(0, 8))
 		# Try to load logo.png from app dir
 		logo_path = os.path.join(application_path, "logo.png")
-		if _HAS_PIL and os.path.exists(logo_path):
+		
+		# Debug: Always show what's happening
+		if not _HAS_PIL:
+			logo_label.configure(text="[PIL yok]")
+		elif not os.path.exists(logo_path):
+			logo_label.configure(text=f"[Logo yok: {os.path.basename(logo_path)}]")
+		else:
 			try:
 				img = Image.open(logo_path)
 				# Resize to fit into UI nicely
 				img.thumbnail((120, 80), Image.LANCZOS)
 				self._logo_img = ImageTk.PhotoImage(img)
 				logo_label.configure(image=self._logo_img)
-			except Exception:
-				logo_label.configure(text="[Logo]")
-		else:
-			# If no PIL or no logo file, show a small text placeholder
-			logo_label.configure(text="[Logo]")
+			except Exception as e:
+				logo_label.configure(text=f"[Hata: {str(e)[:20]}]")
 
 		# Input area
 		input_frame = ttk.LabelFrame(top_frame, text="Yeni Kayit")
