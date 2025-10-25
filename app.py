@@ -15,7 +15,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
-from db import init_db, add_record, get_records, update_record
+from db import init_db, add_record, get_records, update_record, delete_record
 
 # Try to import Pillow for image support; if not present, we'll skip logo
 try:
@@ -86,8 +86,11 @@ class App:
 		self.add_btn = ttk.Button(input_frame, text="Ekle", command=self.on_add)
 		self.add_btn.grid(row=0, column=4, padx=8)
 
+		self.cancel_btn = ttk.Button(input_frame, text="Iptal", command=self.cancel_edit, state="disabled")
+		self.cancel_btn.grid(row=0, column=5, padx=8)
+
 		refresh_btn = ttk.Button(input_frame, text="Yenile", command=self.refresh_list)
-		refresh_btn.grid(row=0, column=5, padx=8)
+		refresh_btn.grid(row=0, column=6, padx=8)
 
 		# allow pressing Enter to submit add/update
 		self.editing_id = None
@@ -117,6 +120,8 @@ class App:
 
 		# double-click on tree row to edit
 		self.tree.bind('<Double-1>', self.on_tree_double_click)
+		# single click on empty area to cancel editing
+		self.tree.bind('<Button-1>', self.on_tree_click)
 
 		# Export buttons
 		export_frame = ttk.Frame(frm)
@@ -125,6 +130,9 @@ class App:
 		ex_xlsx.pack(side=tk.LEFT, padx=5)
 		ex_pdf = ttk.Button(export_frame, text="PDF olarak disa aktar (.pdf)", command=self.export_pdf)
 		ex_pdf.pack(side=tk.LEFT, padx=5)
+		
+		delete_btn = ttk.Button(export_frame, text="Secili satiri sil", command=self.delete_selected)
+		delete_btn.pack(side=tk.LEFT, padx=5)
 
 		# blinking state
 		self.blink_items = {}  # item_id -> stop_time
@@ -161,8 +169,24 @@ class App:
 			# reset editing state
 			self.editing_id = None
 			self.add_btn.configure(text="Ekle")
+			self.cancel_btn.configure(state="disabled")
 		self.len_var.set("")
 		self.refresh_list()
+
+	def cancel_edit(self):
+		"""Cancel editing mode and clear inputs"""
+		self.editing_id = None
+		self.add_btn.configure(text="Ekle")
+		self.cancel_btn.configure(state="disabled")
+		self.len_var.set("")
+		self.tree.selection_remove(self.tree.selection())
+
+	def on_tree_click(self, event):
+		"""Handle single click on tree - cancel edit if clicking empty area"""
+		row_id = self.tree.identify_row(event.y)
+		if not row_id and self.editing_id is not None:
+			# Clicked on empty area while editing - cancel
+			self.cancel_edit()
 
 	def on_tree_double_click(self, event):
 		# identify row under mouse, populate inputs for editing
@@ -180,7 +204,40 @@ class App:
 		self.buf_var.set(tampon_val)
 		self.editing_id = record_id
 		self.add_btn.configure(text="Guncelle")
+		self.cancel_btn.configure(state="normal")
 		self.len_entry.focus_set()
+
+	def delete_selected(self):
+		"""Delete the selected row from database"""
+		selected = self.tree.selection()
+		if not selected:
+			messagebox.showwarning("Secim Yok", "Lutfen silmek icin bir satir secin.")
+			return
+		
+		vals = self.tree.item(selected[0], 'values')
+		if not vals:
+			return
+		
+		record_id = vals[0]
+		boy_val = vals[1]
+		
+		# Confirm deletion
+		confirm = messagebox.askyesno(
+			"Silme Onay", 
+			f"'{boy_val} m' kaydini silmek istediginizden emin misiniz?"
+		)
+		
+		if confirm:
+			try:
+				delete_record(DB_PATH, int(record_id))
+				# If we're editing this record, cancel edit mode
+				if self.editing_id == record_id:
+					self.cancel_edit()
+				else:
+					self.refresh_list()
+				messagebox.showinfo("Basarili", "Kayit silindi.")
+			except Exception as e:
+				messagebox.showerror("Hata", f"Silme sirasinda hata: {e}")
 
 	def refresh_list(self):
 		for r in self.tree.get_children():

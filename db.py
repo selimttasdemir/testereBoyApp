@@ -45,3 +45,12 @@ def update_record(db_path: str, record_id: int, boy: float, tampon: str):
     cur.execute("UPDATE records SET boy = ?, tampon = ? WHERE id = ?", (boy, tampon, record_id))
     conn.commit()
     conn.close()
+
+
+def delete_record(db_path: str, record_id: int):
+    """Delete a record from the database."""
+    conn = sqlite3.connect(db_path)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM records WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
